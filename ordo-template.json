@@ -1,0 +1,464 @@
+{
+  "id": "ecommerce-coupon",
+  "name": "E-commerce Coupon",
+  "description": "Grant discount coupons based on cart amount, VIP level, and an active promotion window. A realistic decision flow you can wire into your checkout in minutes.",
+  "tags": [
+    "E-commerce",
+    "Decision Flow",
+    "Beginner"
+  ],
+  "icon": "shopping-cart",
+  "difficulty": "beginner",
+  "features": [
+    "Multi-tier thresholds",
+    "VIP preferential pricing",
+    "Promotion window gating"
+  ],
+  "facts": [
+    {
+      "name": "user_id",
+      "data_type": "string",
+      "source": "Checkout service",
+      "latency_ms": 1,
+      "null_policy": "error",
+      "description": "The shopper's unique identifier.",
+      "owner": "checkout-team",
+      "created_at": "2026-04-12T00:00:00Z",
+      "updated_at": "2026-04-12T00:00:00Z"
+    },
+    {
+      "name": "user_vip_level",
+      "data_type": "number",
+      "source": "Checkout service",
+      "latency_ms": 5,
+      "null_policy": "default",
+      "description": "VIP level, 0 (regular) through 5 (diamond).",
+      "owner": "checkout-team",
+      "created_at": "2026-04-12T00:00:00Z",
+      "updated_at": "2026-04-12T00:00:00Z"
+    },
+    {
+      "name": "cart_amount",
+      "data_type": "number",
+      "source": "Checkout service",
+      "latency_ms": 1,
+      "null_policy": "error",
+      "description": "Total cart amount in the smallest store currency unit.",
+      "owner": "checkout-team",
+      "created_at": "2026-04-12T00:00:00Z",
+      "updated_at": "2026-04-12T00:00:00Z"
+    },
+    {
+      "name": "cart_items_count",
+      "data_type": "number",
+      "source": "Checkout service",
+      "latency_ms": 1,
+      "null_policy": "default",
+      "description": "Number of distinct SKUs in the cart.",
+      "owner": "checkout-team",
+      "created_at": "2026-04-12T00:00:00Z",
+      "updated_at": "2026-04-12T00:00:00Z"
+    },
+    {
+      "name": "promotion_active",
+      "data_type": "boolean",
+      "source": "Checkout service",
+      "latency_ms": 1,
+      "null_policy": "default",
+      "description": "Whether the promotion window is currently open (set by the marketing scheduler).",
+      "owner": "marketing-team",
+      "created_at": "2026-04-12T00:00:00Z",
+      "updated_at": "2026-04-12T00:00:00Z"
+    }
+  ],
+  "concepts": [
+    {
+      "name": "is_vip",
+      "data_type": "boolean",
+      "expression": "user_vip_level >= 2",
+      "dependencies": [
+        "user_vip_level"
+      ],
+      "description": "True when user_vip_level >= 2 — used by the coupon flow to pick the VIP threshold.",
+      "created_at": "2026-04-12T00:00:00Z",
+      "updated_at": "2026-04-12T00:00:00Z"
+    },
+    {
+      "name": "meets_vip_threshold",
+      "data_type": "boolean",
+      "expression": "cart_amount >= 200",
+      "dependencies": [
+        "cart_amount"
+      ],
+      "description": "Cart total qualifies for the lower VIP threshold (>= 200).",
+      "created_at": "2026-04-12T00:00:00Z",
+      "updated_at": "2026-04-12T00:00:00Z"
+    },
+    {
+      "name": "meets_normal_threshold",
+      "data_type": "boolean",
+      "expression": "cart_amount >= 500",
+      "dependencies": [
+        "cart_amount"
+      ],
+      "description": "Cart total qualifies for the standard threshold (>= 500).",
+      "created_at": "2026-04-12T00:00:00Z",
+      "updated_at": "2026-04-12T00:00:00Z"
+    }
+  ],
+  "ruleset": {
+    "config": {
+      "name": "ecommerce_coupon",
+      "version": "1.0.0",
+      "description": "Grant discount coupons based on cart amount, VIP level, and an active promotion window. A realistic decision flow you can wire into your checkout in minutes.",
+      "entry_step": "check_eligibility"
+    },
+    "steps": {
+      "check_eligibility": {
+        "id": "check_eligibility",
+        "name": "Check Promotion Window",
+        "type": "decision",
+        "branches": [
+          {
+            "condition": "promotion_active == false",
+            "next_step": "terminal_not_eligible"
+          }
+        ],
+        "default_next": "check_user_type"
+      },
+      "check_user_type": {
+        "id": "check_user_type",
+        "name": "Evaluate User & Cart",
+        "type": "decision",
+        "branches": [
+          {
+            "condition": "user_vip_level >= 2 && cart_amount >= 200",
+            "next_step": "terminal_vip_grant"
+          },
+          {
+            "condition": "user_vip_level < 2 && cart_amount >= 500",
+            "next_step": "terminal_normal_grant"
+          }
+        ],
+        "default_next": "terminal_no_coupon"
+      },
+      "terminal_vip_grant": {
+        "id": "terminal_vip_grant",
+        "name": "VIP Coupon Granted",
+        "type": "terminal",
+        "result": {
+          "code": "GRANTED",
+          "message": "VIP coupon granted (20% off).",
+          "output": [
+            [
+              "coupon_type",
+              {
+                "Literal": "vip"
+              }
+            ],
+            [
+              "discount_rate",
+              {
+                "Literal": 0.2
+              }
+            ],
+            [
+              "original_amount",
+              {
+                "Field": "cart_amount"
+              }
+            ]
+          ]
+        }
+      },
+      "terminal_normal_grant": {
+        "id": "terminal_normal_grant",
+        "name": "Standard Coupon Granted",
+        "type": "terminal",
+        "result": {
+          "code": "GRANTED",
+          "message": "Standard coupon granted (10% off).",
+          "output": [
+            [
+              "coupon_type",
+              {
+                "Literal": "standard"
+              }
+            ],
+            [
+              "discount_rate",
+              {
+                "Literal": 0.1
+              }
+            ],
+            [
+              "original_amount",
+              {
+                "Field": "cart_amount"
+              }
+            ]
+          ]
+        }
+      },
+      "terminal_no_coupon": {
+        "id": "terminal_no_coupon",
+        "name": "No Coupon Issued",
+        "type": "terminal",
+        "result": {
+          "code": "NO_COUPON",
+          "message": "Cart does not meet any threshold.",
+          "output": [
+            [
+              "coupon_type",
+              {
+                "Literal": "none"
+              }
+            ]
+          ]
+        }
+      },
+      "terminal_not_eligible": {
+        "id": "terminal_not_eligible",
+        "name": "Outside Promotion Window",
+        "type": "terminal",
+        "result": {
+          "code": "NOT_ELIGIBLE",
+          "message": "No active promotion at this time.",
+          "output": [
+            [
+              "coupon_type",
+              {
+                "Literal": "none"
+              }
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "samples": [
+    {
+      "label": "VIP user, $300 cart, promotion active",
+      "input": {
+        "user_id": "user-001",
+        "user_vip_level": 3,
+        "cart_amount": 300,
+        "cart_items_count": 2,
+        "promotion_active": true
+      },
+      "expected_result": "Expected: GRANTED - 20% VIP discount on $300 cart."
+    },
+    {
+      "label": "Regular user, $800 cart, promotion active",
+      "input": {
+        "user_id": "user-002",
+        "user_vip_level": 0,
+        "cart_amount": 800,
+        "cart_items_count": 5,
+        "promotion_active": true
+      },
+      "expected_result": "Expected: GRANTED - 10% standard discount on $800 cart."
+    },
+    {
+      "label": "Regular user, $150 cart, promotion active",
+      "input": {
+        "user_id": "user-003",
+        "user_vip_level": 0,
+        "cart_amount": 150,
+        "cart_items_count": 1,
+        "promotion_active": true
+      },
+      "expected_result": "Expected: NO_COUPON - cart below the standard threshold."
+    },
+    {
+      "label": "VIP user, $500 cart, promotion inactive",
+      "input": {
+        "user_id": "user-004",
+        "user_vip_level": 3,
+        "cart_amount": 500,
+        "cart_items_count": 3,
+        "promotion_active": false
+      },
+      "expected_result": "Expected: NOT_ELIGIBLE - no active promotion."
+    }
+  ],
+  "contract": {
+    "ruleset_name": "ecommerce_coupon",
+    "version_pattern": "1.x",
+    "owner": "checkout-team",
+    "sla_p99_ms": 10,
+    "input_fields": [
+      {
+        "name": "user_id",
+        "data_type": "string",
+        "required": true,
+        "description": "Shopper unique identifier. Must be non-empty; used for audit trails."
+      },
+      {
+        "name": "user_vip_level",
+        "data_type": "number",
+        "required": false,
+        "description": "VIP tier, integer 0-5. Defaults to 0 (regular) when absent."
+      },
+      {
+        "name": "cart_amount",
+        "data_type": "number",
+        "required": true,
+        "description": "Cart subtotal in the store's base currency unit (e.g. cents). Must be >= 0."
+      },
+      {
+        "name": "cart_items_count",
+        "data_type": "number",
+        "required": false,
+        "description": "Number of distinct line items. Optional; not used by the current decision logic but logged for analytics."
+      },
+      {
+        "name": "promotion_active",
+        "data_type": "boolean",
+        "required": false,
+        "description": "Whether the marketing promotion window is open. Defaults to false when absent - the decision falls through to NOT_ELIGIBLE."
+      }
+    ],
+    "output_fields": [
+      {
+        "name": "coupon_type",
+        "data_type": "string",
+        "required": true,
+        "description": "Coupon tier awarded: 'vip', 'standard', or 'none'."
+      },
+      {
+        "name": "discount_rate",
+        "data_type": "number",
+        "required": false,
+        "description": "Fractional discount (0.2 = 20%). Present only when coupon_type is 'vip' or 'standard'."
+      },
+      {
+        "name": "original_amount",
+        "data_type": "number",
+        "required": false,
+        "description": "Cart amount at the time of evaluation. Echoed back for downstream discount calculation."
+      }
+    ],
+    "notes": "P99 SLA is 10 ms (engine only, excluding network). cart_items_count is accepted but not evaluated - wire it up when tiered-quantity promotions are introduced.",
+    "updated_at": "2026-04-14T00:00:00Z"
+  },
+  "tests": [
+    {
+      "id": "tc-001",
+      "name": "VIP user - coupon granted",
+      "description": "VIP level 3, cart $350, promotion active -> GRANTED with 20% VIP discount.",
+      "input": {
+        "user_vip_level": 3,
+        "cart_amount": 350,
+        "promotion_active": true
+      },
+      "expect": {
+        "code": "GRANTED",
+        "output": {
+          "coupon_type": "vip",
+          "discount_rate": 0.2
+        }
+      },
+      "tags": [
+        "vip",
+        "happy-path"
+      ],
+      "created_at": "2026-04-15T00:00:00Z",
+      "updated_at": "2026-04-15T00:00:00Z",
+      "created_by": "template"
+    },
+    {
+      "id": "tc-002",
+      "name": "Regular user - coupon granted",
+      "description": "VIP level 1, cart $600, promotion active -> GRANTED with 10% standard discount.",
+      "input": {
+        "user_vip_level": 1,
+        "cart_amount": 600,
+        "promotion_active": true
+      },
+      "expect": {
+        "code": "GRANTED",
+        "output": {
+          "coupon_type": "standard",
+          "discount_rate": 0.1
+        }
+      },
+      "tags": [
+        "standard",
+        "happy-path"
+      ],
+      "created_at": "2026-04-15T00:00:00Z",
+      "updated_at": "2026-04-15T00:00:00Z",
+      "created_by": "template"
+    },
+    {
+      "id": "tc-003",
+      "name": "Regular user - below threshold",
+      "description": "VIP level 1, cart $100, promotion active -> NO_COUPON (cart below $500 threshold).",
+      "input": {
+        "user_vip_level": 1,
+        "cart_amount": 100,
+        "promotion_active": true
+      },
+      "expect": {
+        "code": "NO_COUPON",
+        "output": {
+          "coupon_type": "none"
+        }
+      },
+      "tags": [
+        "edge-case"
+      ],
+      "created_at": "2026-04-15T00:00:00Z",
+      "updated_at": "2026-04-15T00:00:00Z",
+      "created_by": "template"
+    },
+    {
+      "id": "tc-004",
+      "name": "Promotion window closed",
+      "description": "VIP level 3, cart $500, promotion inactive -> NOT_ELIGIBLE regardless of user tier.",
+      "input": {
+        "user_vip_level": 3,
+        "cart_amount": 500,
+        "promotion_active": false
+      },
+      "expect": {
+        "code": "NOT_ELIGIBLE",
+        "output": {
+          "coupon_type": "none"
+        }
+      },
+      "tags": [
+        "edge-case",
+        "promotion-off"
+      ],
+      "created_at": "2026-04-15T00:00:00Z",
+      "updated_at": "2026-04-15T00:00:00Z",
+      "created_by": "template"
+    },
+    {
+      "id": "tc-005",
+      "name": "VIP threshold boundary",
+      "description": "VIP level 2 with exactly $200 cart -> should just clear the VIP threshold and get 20% off.",
+      "input": {
+        "user_vip_level": 2,
+        "cart_amount": 200,
+        "promotion_active": true
+      },
+      "expect": {
+        "code": "GRANTED",
+        "output": {
+          "coupon_type": "vip",
+          "discount_rate": 0.2
+        }
+      },
+      "tags": [
+        "vip",
+        "boundary"
+      ],
+      "created_at": "2026-04-15T00:00:00Z",
+      "updated_at": "2026-04-15T00:00:00Z",
+      "created_by": "template"
+    }
+  ]
+}
