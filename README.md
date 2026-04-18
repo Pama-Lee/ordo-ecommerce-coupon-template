@@ -1,18 +1,63 @@
 # E-commerce Coupon Template
 
-Ordo marketplace template for a coupon decision flow.
+Marketplace template repository for Ordo.
 
-## What it does
+This repository is intentionally split into two views of the same template:
 
-- Grants a VIP coupon when `user_vip_level >= 2` and `cart_amount >= 200`
-- Grants a standard coupon when `user_vip_level < 2` and `cart_amount >= 500`
-- Returns `NOT_ELIGIBLE` when the promotion window is closed
+- `ordo-template.json`
+  Single-file marketplace manifest consumed by Ordo's GitHub installer.
+- `template/`
+  Source template in the same multi-file layout used by the built-in platform templates.
 
-## Install
+## Repository Metadata
 
-This repository is meant to be discovered by Ordo's GitHub marketplace search.
-It exposes the required `ordo-template.json` file at the repository root.
+- Template ID: `ecommerce-coupon`
+- Difficulty: `beginner`
+- Icon: `shopping-cart`
+- Marketplace topic: `ordo-template`
 
-## Topic
+## What This Template Does
 
-Add the GitHub topic `ordo-template` so Ordo can find it in the marketplace.
+This decision flow issues discount coupons based on:
+
+- whether the promotion window is open
+- the user's VIP level
+- the cart amount
+
+Decision outcomes:
+
+- `GRANTED` with `coupon_type = vip` and `discount_rate = 0.2`
+- `GRANTED` with `coupon_type = standard` and `discount_rate = 0.1`
+- `NO_COUPON`
+- `NOT_ELIGIBLE`
+
+## Files
+
+Root marketplace entry:
+
+- `ordo-template.json`
+
+Raw source template:
+
+- `template/meta.json`
+- `template/facts.json`
+- `template/concepts.json`
+- `template/ruleset.json`
+- `template/samples.json`
+- `template/contract.json`
+- `template/tests.json`
+- `template/i18n/en.json`
+- `template/i18n/zh-CN.json`
+- `template/i18n/zh-TW.json`
+
+## Install In Ordo
+
+1. Connect GitHub inside Ordo Studio.
+2. Open Marketplace.
+3. Search for this repository by topic `ordo-template` or by repository name.
+4. Install it into an organization as a new project.
+
+## Notes
+
+- The marketplace installer reads `ordo-template.json` from the repository root.
+- The `template/` directory is included so the repository remains auditable and reusable outside the marketplace flow.
